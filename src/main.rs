@@ -65,6 +65,24 @@ impl Table {
         new_t
     }
 
+    fn less_than(&self, col: &str, num: i32) -> Table {
+        let mut new_t = self.clone();
+        new_t.data.clear();
+        for d in &self.data {
+            if let Type::Int(i) = d[col] {
+                match i {
+                    Some(n) => {
+                        if n < num {
+                            new_t.data.push(d.clone());
+                        }
+                    },
+                    None => (),
+                }
+            }
+        }
+        new_t
+    }
+
 
     fn display(&self) {
         let line = || {
@@ -147,8 +165,15 @@ fn main() {
                        ("name",  Type::Text(Some("citrus".to_owned()))),
                        ("price", Type::Int(None))]);
 
+    println!("\n====[ ALL ]====");
+    table1.display();
+
+    println!("\n====[ SELECT ]====");
     table1.select(vec!["id"]).display();
     table1.select(vec!["name", "price"]).display();
 
-    table1.display();
+    println!("\n====[ WHERE < ]====");
+    table1.less_than("id", 10).display();
+    table1.less_than("price", 250).display();
 }
+
