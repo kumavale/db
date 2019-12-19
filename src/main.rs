@@ -6,7 +6,7 @@ enum Type {
     Text(Option<String>),
 }
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 struct Table {
     name:     String,
     order:    Vec<String>,
@@ -52,6 +52,17 @@ impl Table {
         }
 
         self.data.push(hashmap);
+    }
+
+    fn select(&self, cols: Vec<&str>) -> Table {
+        let mut new_t = self.clone();
+        new_t.column.clear();
+        new_t.order.clear();
+        for col in &cols {
+            new_t.column.insert(col.to_owned().to_string(), self.column[col.clone()].clone());
+        }
+        new_t.order = cols.iter().map(|&c| c.to_string()).collect();
+        new_t
     }
 
 
@@ -125,8 +136,8 @@ fn main() {
               (("price", Type::Int(None))), ]);
 
     table1.insert(vec![("id",    Type::Int(Some(1))),
-                  ("name",  Type::Text(Some("apple".to_owned()))),
-                  ("price", Type::Int(Some(50)))]);
+                       ("name",  Type::Text(Some("apple".to_owned()))),
+                       ("price", Type::Int(Some(50)))]);
 
     table1.insert(vec![("id",    Type::Int(Some(2))),
                        ("name",  Type::Text(Some("banana".to_owned()))),
@@ -136,6 +147,8 @@ fn main() {
                        ("name",  Type::Text(Some("citrus".to_owned()))),
                        ("price", Type::Int(None))]);
 
+    table1.select(vec!["id"]).display();
+    table1.select(vec!["name", "price"]).display();
 
     table1.display();
 }
