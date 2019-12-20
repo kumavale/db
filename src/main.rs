@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 enum Type {
     Int(Option<i32>),
     Text(Option<String>),
@@ -83,6 +83,35 @@ impl Table {
         new_t
     }
 
+    fn left_join(&self, other: &Table, key: &str) -> Table {
+        let mut new_t = self.clone();
+
+        if other.column.get(key).is_none() || new_t.column.get(key).is_none() {
+            return new_t;
+        }
+
+        let mut other_cols = Vec::new();
+        for o in &other.order {
+            if new_t.column.get(o).is_none() {
+                new_t.order.push(o.clone());
+                new_t.column.insert(o.clone(), other.column[o].clone());
+                new_t.max_lens.insert(o.clone(), other.max_lens[o]);
+                other_cols.push(o.clone());
+            }
+        }
+
+        for d in &mut new_t.data {
+            for od in &other.data {
+                if d.get(key) == od.get(key) {
+                    for oc in &other_cols {
+                        d.insert(oc.to_owned(), od.get(oc).unwrap().clone());
+                    }
+                }
+            }
+        }
+
+        new_t
+    }
 
     fn display(&self) {
         let line = || {
@@ -104,9 +133,8 @@ impl Table {
         for d in &self.data {
             for key in self.order.iter() {
                 print!(" | ");
-                let mut len: usize = 0;
-                if let Some(v) = d.get(key) {
-                    len = match v {
+                let len = if let Some(v) = d.get(key) {
+                    match v {
                         Type::Int(Some(i))  => {
                             print!("{}", i);
                             i32_len(*i)
@@ -119,8 +147,11 @@ impl Table {
                             print!("null");
                             4
                         },
-                    };
-                }
+                    }
+                } else {
+                    print!("null");
+                    4
+                };
                 print!("{}", " ".repeat(self.max_lens[key] - len));
             }
             println!(" |");
@@ -156,24 +187,44 @@ fn main() {
     table1.insert(vec![("id",    Type::Int(Some(1))),
                        ("name",  Type::Text(Some("apple".to_owned()))),
                        ("price", Type::Int(Some(50)))]);
-
     table1.insert(vec![("id",    Type::Int(Some(2))),
                        ("name",  Type::Text(Some("banana".to_owned()))),
                        ("price", Type::Int(Some(100)))]);
-
     table1.insert(vec![("id",    Type::Int(Some(3))),
                        ("name",  Type::Text(Some("citrus".to_owned()))),
                        ("price", Type::Int(None))]);
 
-    println!("\n====[ ALL ]====");
+    let mut table2 = Table::new("table2",
+        vec![ (("id", Type::Int(None))),
+              (("date", Type::Text(None))), ]);
+
+    table2.insert(vec![("id", Type::Int(Some(1))),
+                       ("date", Type::Text(Some("2019/12/20".to_owned())))]);
+    table2.insert(vec![("id", Type::Int(Some(2))),
+                       ("date", Type::Text(Some("2019/12/21".to_owned())))]);
+    table2.insert(vec![("id", Type::Int(Some(3))),
+                       ("date", Type::Text(Some("2019/12/22".to_owned())))]);
+    table2.insert(vec![("id", Type::Int(Some(4))),
+                       ("date", Type::Text(Some("2019/12/23".to_owned())))]);
+
+    println!("\n====[ table1 ALL ]====");
     table1.display();
 
-    println!("\n====[ SELECT ]====");
+    println!("\n====[ table1 SELECT ]====");
     table1.select(vec!["id"]).display();
     table1.select(vec!["name", "price"]).display();
 
-    println!("\n====[ WHERE < ]====");
+    println!("\n====[ table1 WHERE < ]====");
     table1.less_than("id", 10).display();
     table1.less_than("price", 250).display();
+
+    println!("\n====[ table2 ALL ]====");
+    table2.display();
+
+    println!("\n====[ table1:table2 LEFT JOIN ]====");
+    table1.left_join(&table2, "id").display();
+
+    println!("\n====[ table1:table2 LEFT JOIN => SELECT ]====");
+    table1.left_join(&table2, "id").select(vec!["name", "date"]).display();
 }
 
