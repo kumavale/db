@@ -136,21 +136,21 @@ impl Table {
                 let len = if let Some(v) = d.get(key) {
                     match v {
                         Type::Int(Some(i))  => {
-                            print!("{}", i);
-                            i32_len(*i)
+                            print!("{}{}", " ".repeat(self.max_lens[key]-i32_len(*i)), i);
+                            self.max_lens[key]
                         },
                         Type::Text(Some(t)) => {
                             print!("{}", t);
                             t.len()
                         },
                         _ => {
-                            print!("null");
-                            4
+                            print!("{}null", " ".repeat(self.max_lens[key]-4));
+                            self.max_lens[key]
                         },
                     }
                 } else {
-                    print!("null");
-                    4
+                    print!("{}null", " ".repeat(self.max_lens[key]-4));
+                    self.max_lens[key]
                 };
                 print!("{}", " ".repeat(self.max_lens[key] - len));
             }
@@ -163,12 +163,10 @@ impl Table {
 
 fn i32_len(i: i32) -> usize {
     let mut len: usize = 0;
-    let mut i = if i < 0 {
+    if i < 0 {
         len += 1;
-        i.abs()
-    } else {
-        i.abs()
-    };
+    }
+    let mut i = i.abs();
 
     while i > 0 {
         i /= 10;
@@ -180,9 +178,9 @@ fn i32_len(i: i32) -> usize {
 
 fn main() {
     let mut table1 = Table::new( "table1",
-        vec![ (("id",    Type::Int(None))),
-              (("name",  Type::Text(None))),
-              (("price", Type::Int(None))), ]);
+        vec![ ("id",    Type::Int(None)),
+              ("name",  Type::Text(None)),
+              ("price", Type::Int(None)), ]);
 
     table1.insert(vec![("id",    Type::Int(Some(1))),
                        ("name",  Type::Text(Some("apple".to_owned()))),
@@ -193,10 +191,25 @@ fn main() {
     table1.insert(vec![("id",    Type::Int(Some(3))),
                        ("name",  Type::Text(Some("citrus".to_owned()))),
                        ("price", Type::Int(None))]);
+    table1.insert(vec![("id",    Type::Int(Some(4))),
+                       ("name",  Type::Text(Some("dorian".to_owned()))),
+                       ("price", Type::Int(Some(256)))]);
+    table1.insert(vec![("id",    Type::Int(Some(5))),
+                       ("name",  Type::Text(Some("elderberries".to_owned()))),
+                       ("price", Type::Int(Some(512)))]);
+    table1.insert(vec![("id",    Type::Int(Some(6))),
+                       ("name",  Type::Text(Some("figs".to_owned()))),
+                       ("price", Type::Int(Some(1024)))]);
+    table1.insert(vec![("id",    Type::Int(Some(7))),
+                       ("name",  Type::Text(Some("grapefruit".to_owned()))),
+                       ("price", Type::Int(Some(2048)))]);
+    table1.insert(vec![("id",    Type::Int(Some(8))),
+                       ("name",  Type::Text(Some("honeydew melon".to_owned()))),
+                       ("price", Type::Int(Some(4096)))]);
 
     let mut table2 = Table::new("table2",
-        vec![ (("id", Type::Int(None))),
-              (("date", Type::Text(None))), ]);
+        vec![ ("id", Type::Int(None)),
+              ("date", Type::Text(None)), ]);
 
     table2.insert(vec![("id", Type::Int(Some(1))),
                        ("date", Type::Text(Some("2019/12/20".to_owned())))]);
@@ -206,12 +219,16 @@ fn main() {
                        ("date", Type::Text(Some("2019/12/22".to_owned())))]);
     table2.insert(vec![("id", Type::Int(Some(4))),
                        ("date", Type::Text(Some("2019/12/23".to_owned())))]);
+    table2.insert(vec![("id", Type::Int(Some(8))),
+                       ("date", Type::Text(Some("2019/12/27".to_owned())))]);
+    table2.insert(vec![("id", Type::Int(Some(13))),
+                       ("date", Type::Text(Some("2020/01/01".to_owned())))]);
 
     println!("\n====[ table1 ALL ]====");
     table1.display();
 
     println!("\n====[ table1 SELECT ]====");
-    table1.select(vec!["id"]).display();
+    table1.select(vec!["name"]).display();
     table1.select(vec!["name", "price"]).display();
 
     println!("\n====[ table1 WHERE < ]====");
