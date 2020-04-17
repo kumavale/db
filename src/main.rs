@@ -36,7 +36,10 @@ impl Table {
     fn insert(&mut self, data: Vec<(&str, Type)>) {
         let mut hashmap = HashMap::new();
         for d in data {
-            if let Some(_) = &self.column.get(d.0) {
+            if self.column.get(d.0).is_some() {
+                if hashmap.get(d.0).is_some() {
+                    panic!(format!("Duplicate column name \"{}\"", d.0));
+                }
                 let len = match &d.1 {
                     Type::Int(Some(i))  => i32_len(*i),
                     Type::Text(Some(t)) => t.len(),
@@ -59,7 +62,9 @@ impl Table {
         new_t.column.clear();
         new_t.order.clear();
         for col in &cols {
-            new_t.column.insert(col.to_owned().to_string(), self.column[col.clone()].clone());
+            if self.column.get(*col).is_some() {
+                new_t.column.insert(col.to_owned().to_string(), self.column[col.clone()].clone());
+            }
         }
         new_t.order = cols.iter().map(|&c| c.to_string()).collect();
         new_t
@@ -87,6 +92,7 @@ impl Table {
         let mut new_t = self.clone();
 
         if other.column.get(key).is_none() || new_t.column.get(key).is_none() {
+            // error msg
             return new_t;
         }
 
@@ -117,42 +123,37 @@ impl Table {
         let line = || {
             print!(" +");
             for key in self.order.iter() {
-                print!("-{}-+", "-".repeat(self.max_lens[key]));
+                print!("-{:-<width$}-+", "-", width = self.max_lens[key]);
             }
             println!();
         };
 
         line();
         print!(" |");
-        for key in self.order.iter() {
-            print!(" {}{} |", key, " ".repeat(self.max_lens[key] - key.len()));
+        for col in self.order.iter() {
+            print!(" {:^width$} |", col, width = self.max_lens[col]);
         }
         println!();
         line();
 
         for d in &self.data {
-            for key in self.order.iter() {
+            for col in self.order.iter() {
                 print!(" | ");
-                let len = if let Some(v) = d.get(key) {
+                if let Some(v) = d.get(col) {
                     match v {
-                        Type::Int(Some(i))  => {
-                            print!("{}{}", " ".repeat(self.max_lens[key]-i32_len(*i)), i);
-                            self.max_lens[key]
+                        Type::Int(Some(val))  => {
+                            print!("{:>width$}", val, width = self.max_lens[col]);
                         },
-                        Type::Text(Some(t)) => {
-                            print!("{}", t);
-                            t.len()
+                        Type::Text(Some(text)) => {
+                            print!("{:<width$}", text, width = self.max_lens[col]);
                         },
                         _ => {
-                            print!("{}null", " ".repeat(self.max_lens[key]-4));
-                            self.max_lens[key]
+                            print!("{:>width$}", "NULL", width = self.max_lens[col]);
                         },
                     }
                 } else {
-                    print!("{}null", " ".repeat(self.max_lens[key]-4));
-                    self.max_lens[key]
+                    print!("{:>width$}", "NULL", width = self.max_lens[col]);
                 };
-                print!("{}", " ".repeat(self.max_lens[key] - len));
             }
             println!(" |");
         }
@@ -161,14 +162,14 @@ impl Table {
     }
 }
 
-fn i32_len(i: i32) -> usize {
+fn i32_len(mut i: i32) -> usize {
     let mut len: usize = 0;
     if i < 0 {
         len += 1;
+        i = -i;
     }
-    let mut i = i.abs();
 
-    while i > 0 {
+    while 0 < i {
         i /= 10;
         len += 1;
     }
