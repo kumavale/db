@@ -33,37 +33,37 @@ impl Table {
         }
     }
 
-    fn insert(&mut self, data: Vec<(&str, Type)>) {
+    fn insert(&mut self, data: Vec<(impl Into<String> + Copy, Type)>) {
         let mut hashmap = HashMap::new();
         for d in data {
-            if self.column.get(d.0).is_some() {
-                if hashmap.get(d.0).is_some() {
-                    panic!(format!("Duplicate column name \"{}\"", d.0));
+            if self.column.get(&d.0.into()).is_some() {
+                if hashmap.get(&d.0.into()).is_some() {
+                    panic!("Duplicate column name \"{}\"", d.0.into());
                 }
                 let len = match &d.1 {
                     Type::Int(Some(i))  => i32_len(*i),
                     Type::Text(Some(t)) => t.len(),
                     _ => 4, // null
                 };
-                if self.max_lens[d.0] < len {
-                    self.max_lens.insert(d.0.to_owned(), len);
+                if self.max_lens[&d.0.into()] < len {
+                    self.max_lens.insert(d.0.into(), len);
                 }
-                hashmap.insert(d.0.to_owned(), d.1);
+                hashmap.insert(d.0.into(), d.1);
             } else {
-                panic!(format!("Unknown column \"{}\" in \"{}\"", d.0, self.name));
+                panic!("Unknown column \"{}\" in \"{}\"", d.0.into(), self.name);
             }
         }
 
         self.data.push(hashmap);
     }
 
-    fn select(&self, cols: Vec<&str>) -> Table {
+    fn select(&self, cols: &[&str]) -> Table {
         let mut new_t = self.clone();
         new_t.column.clear();
         new_t.order.clear();
-        for col in &cols {
+        for col in cols {
             if self.column.get(*col).is_some() {
-                new_t.column.insert(col.to_owned().to_string(), self.column[col.clone()].clone());
+                new_t.column.insert(col.to_owned().to_string(), self.column[*col].clone());
             }
         }
         new_t.order = cols.iter().map(|&c| c.to_string()).collect();
@@ -74,14 +74,9 @@ impl Table {
         let mut new_t = self.clone();
         new_t.data.clear();
         for d in &self.data {
-            if let Type::Int(i) = d[col] {
-                match i {
-                    Some(n) => {
-                        if n < num {
-                            new_t.data.push(d.clone());
-                        }
-                    },
-                    None => (),
+            if let Type::Int(Some(n)) = d[col] {
+                if n < num {
+                    new_t.data.push(d.clone());
                 }
             }
         }
@@ -229,8 +224,8 @@ fn main() {
     table1.display();
 
     println!("\n====[ table1 SELECT ]====");
-    table1.select(vec!["name"]).display();
-    table1.select(vec!["name", "price"]).display();
+    table1.select(&["name"]).display();
+    table1.select(&["name", "price"]).display();
 
     println!("\n====[ table1 WHERE < ]====");
     table1.less_than("id", 10).display();
@@ -243,6 +238,7 @@ fn main() {
     table1.left_join(&table2, "id").display();
 
     println!("\n====[ table1:table2 LEFT JOIN => SELECT ]====");
-    table1.left_join(&table2, "id").select(vec!["name", "date"]).display();
+    table1.left_join(&table2, "id").select(&["name", "date"]).display();
+
 }
 
