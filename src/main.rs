@@ -15,6 +15,13 @@ struct Table {
     data:     Vec<HashMap<String, Type>>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+enum LikeType {
+    Underscore,   // '_'
+    Percent,      // '%'
+    Str(String),  // other characters
+}
+
 impl Table {
     fn new(name: &str, col: Vec<(&str, Type)>) -> Self {
         let mut order    = Vec::new();
@@ -76,6 +83,47 @@ impl Table {
         for d in &self.data {
             if let Type::Int(Some(n)) = d[col] {
                 if n < num {
+                    new_t.data.push(d.clone());
+                }
+            }
+        }
+        new_t
+    }
+
+    fn like(&self, col: &str, pattern: &str) -> Table {
+        fn tokenize(pattern: &str) -> Vec<LikeType> {
+            let mut tokens = vec![];
+            let pattern_chars = pattern.chars().collect::<Vec<char>>();
+            let mut idx = 0;
+            while idx < pattern_chars.len() {
+                match pattern_chars[idx] {
+                    '_' => {
+                        tokens.push(LikeType::Underscore);
+                        idx += 1;
+                    }
+                    '%' => {
+                        tokens.push(LikeType::Percent);
+                        idx += 1;
+                    }
+                     _  => {
+                         let mut s = pattern_chars[idx].to_string();
+                         idx += 1;
+                         while idx < pattern_chars.len() && pattern_chars[idx] != '%' && pattern_chars[idx] != '_' {
+                             s.push(pattern_chars[idx]);
+                             idx += 1;
+                         }
+                         tokens.push(LikeType::Str(s));
+                     }
+                }
+            }
+            tokens
+        }
+        let pattern = tokenize(pattern);
+        let mut new_t = self.clone();
+        new_t.data.clear();
+        for d in &self.data {
+            if let Type::Text(Some(s)) = &d[col] {
+                if like(&pattern, &s) {
                     new_t.data.push(d.clone());
                 }
             }
@@ -172,6 +220,29 @@ fn i32_len(mut i: i32) -> usize {
     len
 }
 
+fn like(mut pattern: &[LikeType], mut target: &str) -> bool {
+    loop {
+        if target.is_empty() {
+            return pattern.is_empty();
+        }
+        match pattern.first() {
+            Some(LikeType::Underscore) => target = &target[1..],
+            Some(LikeType::Percent) => {
+                return pattern.len() == 1 || (1..target.len()).any(|i|like(&pattern[1..], &target[i..]));
+            }
+            Some(LikeType::Str(s)) => {
+                if !target.starts_with(s) {
+                    return false;
+                }
+                target = &target[s.len()..]
+            }
+            None => break
+        }
+        pattern = &pattern[1..];
+    }
+    target.is_empty()
+}
+
 fn main() {
     let mut table1 = Table::new( "table1",
         vec![ ("id",    Type::Int(None)),
@@ -240,5 +311,10 @@ fn main() {
     println!("\n====[ table1:table2 LEFT JOIN => SELECT ]====");
     table1.left_join(&table2, "id").select(&["name", "date"]).display();
 
+    println!("\n====[ table1 WHERE LIKE ]====");
+    table1.like("name", "apple").display();
+    table1.like("name", "______").display();
+    table1.like("name", "%s").display();
+    table1.like("name", "%ri%").display();
 }
 
